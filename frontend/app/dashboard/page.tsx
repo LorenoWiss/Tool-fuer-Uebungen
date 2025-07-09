@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface Organization {
   id: string;
@@ -110,8 +111,10 @@ export default function DashboardPage() {
           {organizations.length > 0 ? (
             <ul className="space-y-4">
               {organizations.map((org) => (
-                <li key={org.id} className="p-4 border rounded-md shadow-sm bg-white">
-                  <p className="font-medium text-lg">{org.name}</p>
+                <li key={org.id}>
+                  <Link href={`/organization/${org.id}`} className="block p-4 border rounded-md shadow-sm bg-white hover:bg-gray-50 transition-colors">
+                    <p className="font-medium text-lg">{org.name}</p>
+                  </Link>
                 </li>
               ))}
             </ul>
