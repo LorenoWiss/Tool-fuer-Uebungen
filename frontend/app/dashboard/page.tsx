@@ -8,6 +8,7 @@ import Link from 'next/link';
 interface Organization {
   id: string;
   name: string;
+  ownerId: string;
 }
 
 export default function DashboardPage() {

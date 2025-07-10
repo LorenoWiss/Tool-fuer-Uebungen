@@ -2,9 +2,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 
 // GET /api/organizations - Fetches organizations for the logged-in user
-export async function GET(_req: Request) {
+export async function GET() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -16,12 +17,21 @@ export async function GET(_req: Request) {
       where: {
         userId: session.user.id,
       },
-      include: {
-        organization: true, // Include the full organization details
+      select: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            ownerId: true,
+          },
+        },
       },
     });
 
-    const organizations = organizationMemberships.map((m) => m.organization);
+    // Manually map to a clean array to avoid serialization issues
+    const organizations = organizationMemberships.map(
+      (m: { organization: { id: string; name: string; ownerId: string } }) => m.organization
+    );
 
     return NextResponse.json(organizations, { status: 200 });
   } catch (error) {
@@ -45,7 +55,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const newOrganization = await prisma.$transaction(async (tx) => {
+    const newOrganization = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Create the organization
       const organization = await tx.organization.create({
         data: {

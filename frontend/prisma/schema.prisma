@@ -7,81 +7,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgres://77ba593f84eeed584ddb8cb57702fb144178366a4dbeaf9858408c3f066c7d8e:sk_mIAudVlOoQ9Um4yNUn6uQ@db.prisma.io:5432/?sslmode=require"
+  url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  accounts      Account[]
-  sessions      Session[]
-
-  ownedOrganizations Organization[] @relation("Owner")
-  organizations      OrganizationMember[]
-}
-
-model Organization {
-  id      String    @id @default(cuid())
-  name    String
-  ownerId String
-  owner   User      @relation("Owner", fields: [ownerId], references: [id])
-  members OrganizationMember[]
-  levels  Level[]
-}
-
-model OrganizationMember {
-  id             String       @id @default(cuid())
-  organizationId String
-  userId         String
-  role           String       // e.g., "ADMIN", "MEMBER"
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, userId])
-}
-
-model Level {
-  id             String    @id @default(cuid())
-  name           String
-  organizationId String
-  parentId       String?   // For sub-levels
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  parent         Level?    @relation("SubLevels", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  subLevels      Level[]   @relation("SubLevels")
-  exercises      Exercise[]
-}
-
-model Exercise {
-  id          String       @id @default(cuid())
-  name        String
-  levelId     String
-  status      String       // e.g., "PLANNED", "IN_PROGRESS", "COMPLETED"
-  level       Level        @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  timeSteps   TimeStep[]
-  participants ExerciseParticipant[]
-}
-
-model TimeStep {
-  id          String   @id @default(cuid())
-  description String
-  time        String   // Using String for flexibility, can be "10:00" or "Phase 1"
-  order       Int
-  exerciseId  String
-  exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-}
-
-model ExerciseParticipant {
-  id         String   @id @default(cuid())
-  name       String
-  exerciseId String
-  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-}
-
-// Models for Auth.js
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -115,4 +43,82 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model User {
+  id                 String                 @id @default(cuid())
+  name               String
+  email              String                 @unique
+  emailVerified      DateTime?
+  image              String?
+  password           String
+  accounts           Account[]
+  sessions           Session[]
+  ownedOrganizations Organization[]         @relation("OwnedOrganizations")
+  memberships        OrganizationMember[] @relation("UserMemberships")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String   @map("owner_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner     User                 @relation("OwnedOrganizations", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   OrganizationMember[] @relation("OrganizationMembers")
+  levels    Level[]
+  exercises Exercise[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String // e.g., "ADMIN", "MEMBER"
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization Organization @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("organization_members")
+}
+
+model Level {
+  id             String    @id @default(cuid())
+  name           String
+  organizationId String
+  parentId       String?   @map("parent_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Level?       @relation("LevelHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children     Level[]      @relation("LevelHierarchy")
+
+  @@map("levels")
+}
+
+enum ExerciseStatus {
+  PLANNED
+  ONGOING
+  COMPLETED
+}
+
+model Exercise {
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  status         ExerciseStatus @default(PLANNED)
+  organizationId String
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("exercises")
 }
