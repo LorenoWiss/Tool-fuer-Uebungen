@@ -1,1 +1,1 @@
-# Tool-fuer-Uebungen
+# Tool für Aktivitäten
